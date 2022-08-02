@@ -103,86 +103,85 @@ def is_string(line):
 def generate_config_content(file):
     """..."""
     LOG.debug(f"_____ {file} _____")
-    file_h = open(file, "r+")
-    file   = file_h.read()
+    with open(file, "r+") as file_h:
+        file   = file_h.read()
 
-    # Collect indices of markdown code block ticks, split into start,end pairs
-    # with `split_into_pairs` below. Collect the config parameter prefix used in
-    # the current block if viable and replace the contents with the output of
-    # the Mbed CLI config verbose list command.
-    snippet_indices = [m.start() for m in re.finditer("```", file)]
+        # Collect indices of markdown code block ticks, split into start,end pairs
+        # with `split_into_pairs` below. Collect the config parameter prefix used in
+        # the current block if viable and replace the contents with the output of
+        # the Mbed CLI config verbose list command.
+        snippet_indices = [m.start() for m in re.finditer("```", file)]
 
-    blocks = {}
-    for i in range(0, int(len(snippet_indices) / 2)):
-        snippet_indices = [m.start() for m in re.finditer("```", file)] # Need to rerun on every loop as the indices change each iteration
+        blocks = {}
+        for i in range(len(snippet_indices) // 2):
+            snippet_indices = [m.start() for m in re.finditer("```", file)] # Need to rerun on every loop as the indices change each iteration
 
-        ranges = list(split_into_pairs(snippet_indices))
-        start = ranges[i][0]
-        end = ranges[i][1]
+            ranges = list(split_into_pairs(snippet_indices))
+            start = ranges[i][0]
+            end = ranges[i][1]
 
-        try:
-            blocks[i] = file[start : end + 3]
-            if "Name: " in blocks[i]:
-                lib = blocks[i].split("Name: ")[1].split(".")[0]
-                print(f"=================   {lib}   =================")
-                cmd = ["mbed", "compile", "-m", "DISCO_L475VG_IOT01A", "--config", "-v", "--prefix", lib]
-                LOG.debug(cmd)
-                configuration_output = subprocess.check_output(cmd).decode()
+            try:
+                blocks[i] = file[start : end + 3]
+                if "Name: " in blocks[i]:
+                    lib = blocks[i].split("Name: ")[1].split(".")[0]
+                    print(f"=================   {lib}   =================")
+                    cmd = ["mbed", "compile", "-m", "DISCO_L475VG_IOT01A", "--config", "-v", "--prefix", lib]
+                    LOG.debug(cmd)
+                    configuration_output = subprocess.check_output(cmd).decode()
 
-                # Some APIs break config options into logical blocks in their config files.
-                # If a tag is applied to a parameter block, only display parameter names that contain that tag
-                # For example:
-                #   ```heap
-                #   mbed-mesh-api.heap-size
-                #       ...
-                #   mbed-mesh-api.heap-stat-info
-                #       ..
-                #   ......
-                #   ```
-                #
-                # On encountering a block with a tag, collect the common parameter token,
-                # and split the configuration list output into its components.
-                # Collect tag (if present), split <TAG> from ```<TAG> at current index
-                # Check with regex for string to cover for potential trailing whitespaces
-                tag = file[start : file.find("\n", start)].split("`")[-1]
-                if is_string(tag):
-                    print(f"\t------- Tag: {tag} -------")
+                    # Some APIs break config options into logical blocks in their config files.
+                    # If a tag is applied to a parameter block, only display parameter names that contain that tag
+                    # For example:
+                    #   ```heap
+                    #   mbed-mesh-api.heap-size
+                    #       ...
+                    #   mbed-mesh-api.heap-stat-info
+                    #       ..
+                    #   ......
+                    #   ```
+                    #
+                    # On encountering a block with a tag, collect the common parameter token,
+                    # and split the configuration list output into its components.
+                    # Collect tag (if present), split <TAG> from ```<TAG> at current index
+                    # Check with regex for string to cover for potential trailing whitespaces
+                    tag = file[start : file.find("\n", start)].split("`")[-1]
+                    if is_string(tag):
+                        print(f"\t------- Tag: {tag} -------")
 
-                    start_of_config_block = file.find("Name:", start)
-                    updated_config = str(file[ : start_of_config_block])
-                    for line in configuration_output.splitlines():
-                        if "Name" in line and tag in line:
-                            updated_config += line
+                        start_of_config_block = file.find("Name:", start)
+                        updated_config = str(file[ : start_of_config_block])
+                        for line in configuration_output.splitlines():
+                            if "Name" in line and tag in line:
+                                updated_config += line
 
-                            # Collect all text until next parameter name. If there's no following 'Name:' token, its the last
-                            # config option, match to 'Macros' instead to termiante the block. Offset starting index to avoid finding
-                            # the current line's 'Name:' token.
-                            eol = configuration_output.find("\n", configuration_output.find(line))
-                            if configuration_output.find("Name:", configuration_output.find(line) + len("Name:")) > 0:
-                                updated_config += configuration_output[eol : configuration_output.find("Name:", configuration_output.find(line) + len("Name:"))]
-                            else:
-                                updated_config += configuration_output[eol : configuration_output.find("Macros", configuration_output.find(line))]
+                                # Collect all text until next parameter name. If there's no following 'Name:' token, its the last
+                                # config option, match to 'Macros' instead to termiante the block. Offset starting index to avoid finding
+                                # the current line's 'Name:' token.
+                                eol = configuration_output.find("\n", configuration_output.find(line))
+                                if configuration_output.find("Name:", configuration_output.find(line) + len("Name:")) > 0:
+                                    updated_config += configuration_output[eol : configuration_output.find("Name:", configuration_output.find(line) + len("Name:"))]
+                                else:
+                                    updated_config += configuration_output[eol : configuration_output.find("Macros", configuration_output.find(line))]
 
-                    updated_config += str(file[end:])
-                else:
-                    updated_config = str(file[:start+4] + configuration_output[:configuration_output.index("Macros") - 1] + file[end:])
+                        updated_config += str(file[end:])
+                    else:
+                        updated_config = str(file[:start+4] + configuration_output[:configuration_output.index("Macros") - 1] + file[end:])
 
-                file = updated_config
+                    file = updated_config
 
-        # Originally added for debugging purposes, catch and display exceptions before
-        # continuing without exiting to provide a complete list of errors found
-        except Exception as e:
-            print("Error")
-            print(e)
-            print("____________________")
-            exc_type, _ , exc_tb = sys.exc_info()
-            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-            print(exc_type, fname, exc_tb.tb_lineno)
+            # Originally added for debugging purposes, catch and display exceptions before
+            # continuing without exiting to provide a complete list of errors found
+            except Exception as e:
+                print("Error")
+                print(e)
+                print("____________________")
+                exc_type, _ , exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
 
-    file_h.truncate(0)
-    file_h.seek(0)
-    file_h.write(file)
-    file_h.close()
+        file_h.truncate(0)
+        file_h.seek(0)
+        file_h.write(file)
 
 
 def config_update(args):
@@ -192,7 +191,7 @@ def config_update(args):
     else:
         for (root, _, filenames) in os.walk(args.path):
             for filename in filenames:
-                if not filename == "configuration.md":
+                if filename != "configuration.md":
                     generate_config_content(os.path.join(root, filename))
 
 

@@ -25,17 +25,17 @@ def main():
     parser.add_option("-f", "--inputfile",  dest="inputfile",  action="store", type="string", default="" , help="File to be validated", metavar="FILE")
     parser.add_option("-i", "--wordsfile", dest="wordsfile", action="store", type="string", default="prohibited.txt", help="File containing the words to be checked", metavar="FILE")
     (options, args) = parser.parse_args()
-    
-    if len(options.inputfile) <= 0 or len(options.wordsfile) == None:
+
+    if len(options.inputfile) <= 0 or len(options.wordsfile) is None:
         parser.error("Invalid arguments")
-        
+
     words_file = open(options.wordsfile)
     alllines = words_file.read()
     words = alllines[:-1].replace("\n","|")
-    
+
     if os.path.isfile(options.inputfile):
         validate_file(options.inputfile)
-        
+
     if(os.path.isdir(options.inputfile)):
         for root, dirs, files in os.walk(options.inputfile, topdown=False):
             for name in files:

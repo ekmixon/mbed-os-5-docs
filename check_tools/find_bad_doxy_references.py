@@ -61,7 +61,7 @@ def main(path=None):
     if interactive:
         input('Hit any key to continue ')
 
-    return 0 if not bad else 1
+    return 1 if bad else 0
 
 
 if __name__ == "__main__":

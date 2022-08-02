@@ -12,12 +12,18 @@ from subprocess import check_output
 # remembering successful urls
 
 MBED_BOT_USER  = "mbed-pr-bot"
-MBED_BOT_EMAIL = MBED_BOT_USER + "@arm.com"
+MBED_BOT_EMAIL = f"{MBED_BOT_USER}@arm.com"
 MBED_BOT_TOKEN = "9038ab8321dbe1581185c1dc0b33572acd215426"
 REPO_SLUG = "ARMmbed/Handbook"
-REPO_API_URL = "https://api.github.com/repos/" + REPO_SLUG
-REPO_PUSH_URL = ("https://" + MBED_BOT_USER + ":" + MBED_BOT_TOKEN +
-    "@github.com/" + MBED_BOT_USER + "/" + REPO_SLUG.split('/')[1])
+REPO_API_URL = f"https://api.github.com/repos/{REPO_SLUG}"
+REPO_PUSH_URL = (
+    (
+        (f"https://{MBED_BOT_USER}:{MBED_BOT_TOKEN}" + "@github.com/")
+        + MBED_BOT_USER
+    )
+    + "/"
+) + REPO_SLUG.split('/')[1]
+
 
 REDIRECT_NEW_TEMPLATE = (
     "<span class=\"warnings\">**Out of date**: "

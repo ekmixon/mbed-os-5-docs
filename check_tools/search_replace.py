@@ -84,10 +84,8 @@ def insert_string(matchobj):
     start_tag, end_tag, string_to_insert = get_insert_tags(DEFAULT_CONFIG_FILE)
     re.search(start_tag, matchobj.group(0))
     return (
-        re.search(start_tag, matchobj.group(0)).group(0)
-        + string_to_insert
-        + end_tag
-    )
+        re.search(start_tag, matchobj.group(0))[0] + string_to_insert
+    ) + end_tag
 
 
 def replace_pattern_in_file(file_path, pattern, substitute):
@@ -98,8 +96,7 @@ def replace_pattern_in_file(file_path, pattern, substitute):
         return
     fh, abs_path = mkstemp()
     with os.fdopen(fh, "w") as new_file:
-        with open(file_path) as old_file:
-            old_file_content = old_file.read()
+        old_file_content = pathlib.Path(file_path).read_text()
         new_file_content = re.sub(pattern, substitute, old_file_content)
         new_file.write(new_file_content)
     copymode(file_path, abs_path)
@@ -134,7 +131,6 @@ def is_valid_file(parser, arg):
     file = os.path.join(pathlib.Path().absolute(), arg)
     if not os.path.exists(file):
         parser.error(f"'{file}': No such file or directory.")
-        pass
     else:
         return file
 
